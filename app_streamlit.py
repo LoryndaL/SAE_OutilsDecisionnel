@@ -138,29 +138,18 @@ def meteo_emoji(description):
     else:
         return "🌡️"
 
-# Fonction pour récupérer les données de transport avec l'API SNCF
-def get_sncf_data(city_name):
-    url = f"https://api.sncf.com/v1"
-    headers = {"Authorization": f"Bearer YOUR_SNCF_API_KEY"}
-    response = requests.get(url, headers=headers)
-    if response.status_code == 200:
-        data = response.json()
-        return data['stop_areas']
-    else:
-        return []
-
 # --- Contenu principal de l'application ---
 if st.session_state.page == "Accueil":
     st.markdown('<h1 class="center"> 🌍 Comparaison entre 2 grandes villes françaises 🔍 </h1>', unsafe_allow_html=True)
     st.markdown('<h3 class="center">Explorez les données pour comparer ces deux villes</h3>', unsafe_allow_html=True)
     st.markdown("---")
     st.write("Utilisez le menu latéral pour naviguer entre les différentes sections.")
-    st.write("- **Démographie 🗺️** : Découvrez les chiffres clés.")
+    st.write("- **Démographie 📊** : Découvrez les chiffres clés.")
     st.write("- **Emploi 💼** : Comparez les opportunités.")
     st.write("- **Logement 🏠** : Analysez le marché.")
     st.write("- **Météo ☀️** : Consultez la météo.")
     st.write("- **Niveau de vie 💸** : Évaluez les conditions.")
-    st.write("- **Transports 🚌** : Comparez les infrastructures de transport.")
+    st.write("- **Carte 🗺️** : Découvrez le plan des villes")
     st.markdown("---")
 
     st.markdown("""
@@ -200,7 +189,7 @@ if st.session_state.page == "Accueil":
 """, unsafe_allow_html=True)
 
 elif st.session_state.page == "Démographie":
-    st.header("🗺️Démographie")
+    st.header("Démographie 📊")
     # Barres : Population, Naissances, Décès
     demo_df = pd.DataFrame({
         "Ville": [ville1, ville2],
@@ -499,7 +488,7 @@ elif st.session_state.page == "Niveau de vie":
     st.plotly_chart(fig, use_container_width=True)
 
 elif st.session_state.page == "Carte":
-    st.header("🏙️ Localisation des Villes")
+    st.header("🗺️ Localisation des Villes")
     
     # Récupération des coordonnées
     lat1, lon1 = get_commune_coords(df_ville1["CODGEO"])
