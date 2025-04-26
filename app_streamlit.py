@@ -40,6 +40,16 @@ def charger_villes():
     df = df[df["P21_POP"] > 20000]
     return df
 
+@st.cache_data(show_spinner=False)
+def get_commune_coords(code_insee):
+    url = f"https://geo.api.gouv.fr/communes?code={code_insee}&fields=nom,centre"
+    resp = requests.get(url)
+    data = resp.json()
+    if data and 'centre' in data[0]:
+        lon, lat = data[0]['centre']['coordinates']
+        return lat, lon
+    return None, None
+
 # --- CSS pour le style global ---
 st.markdown(
     """
@@ -53,22 +63,25 @@ st.markdown(
 
 # --- Barre latérale ---
 with st.sidebar:
+    st.markdown('<h1 class="center">City Fighting 👊</h1>', unsafe_allow_html=True)
+    st.markdown("---")
+
     accueil_clicked = st.button("🏠 Accueil")
     if accueil_clicked:
         st.session_state.page = "Accueil"
 
     df_villes = charger_villes()
     villes = df_villes["LIBGEO"].sort_values().unique()
-    ville1 = st.selectbox("Choisis la première ville 🌆", villes, key="ville1")
-    ville2 = st.selectbox("Choisis la seconde ville 🌇", villes, index=1, key="ville2")
+    ville1 = st.selectbox("Choisissez la première ville 🌆", villes, key="ville1")
+    ville2 = st.selectbox("Choisissez la seconde ville 🌇", villes, index=1, key="ville2")
     df_ville1 = df_villes[df_villes["LIBGEO"] == ville1].iloc[0]
     df_ville2 = df_villes[df_villes["LIBGEO"] == ville2].iloc[0]
 
-    st.markdown('<h2 class="center">Que cherches-tu?</h2>', unsafe_allow_html=True)
+    st.markdown('<h2 class="center">Que cherchez-vous?</h2>', unsafe_allow_html=True)
 
     selected_menu = st.radio(
         "Choisir une section",
-        ("Démographie", "Emploi", "Logement", "Climat", "Niveau de vie", "Tourisme"),
+        ("Démographie", "Emploi", "Logement", "Météo", "Niveau de vie", "Carte"),
         key="menu_radio"
     )
 
@@ -125,37 +138,14 @@ def meteo_emoji(description):
     else:
         return "🌡️"
 
-# Fonction pour récupérer les données touristiques avec l'API DATAtourisme
-def get_tourism_data(city_name, api_key):
-    # Requête GraphQL pour les POI touristiques d'une ville (exemple pour Paris)
-    query = """
-    {
-      poi(
-        first: 30,
-        where: {
-          address: {city: "%s"},
-          category: {in: ["MUSEE", "MONUMENT", "PARC_JARDIN", "SITE_NATUREL"]}
-        }
-      ) {
-        name
-        category
-        address {city, postalCode, streetAddress}
-        latitude
-        longitude
-        description
-        url
-      }
-    }
-    """ % city_name
-
-    headers = {"Content-Type": "application/json"}
-    # Jeton d'API public (limité), pour usage réel demander un token sur datatourisme.fr
-    url = "https://api.datatourisme.fr/graphql"
-    response = requests.post(url, json={"query": query}, headers=headers)
+# Fonction pour récupérer les données de transport avec l'API SNCF
+def get_sncf_data(city_name):
+    url = f"https://api.sncf.com/v1"
+    headers = {"Authorization": f"Bearer YOUR_SNCF_API_KEY"}
+    response = requests.get(url, headers=headers)
     if response.status_code == 200:
         data = response.json()
-        pois = data["data"]["poi"]
-        return pois
+        return data['stop_areas']
     else:
         return []
 
@@ -165,19 +155,52 @@ if st.session_state.page == "Accueil":
     st.markdown('<h3 class="center">Explorez les données pour comparer ces deux villes</h3>', unsafe_allow_html=True)
     st.markdown("---")
     st.write("Utilisez le menu latéral pour naviguer entre les différentes sections.")
-    st.write("- **Démographie** : Découvrez les chiffres clés.")
-    st.write("- **Emploi** : Comparez les opportunités.")
-    st.write("- **Logement** : Analysez le marché.")
-    st.write("- **Climat** : Consultez la météo.")
-    st.write("- **Niveau de vie** : Évaluez les conditions.")
-    st.write("- **Tourisme** : Comparez les sites touristiques.")
+    st.write("- **Démographie 🗺️** : Découvrez les chiffres clés.")
+    st.write("- **Emploi 💼** : Comparez les opportunités.")
+    st.write("- **Logement 🏠** : Analysez le marché.")
+    st.write("- **Météo ☀️** : Consultez la météo.")
+    st.write("- **Niveau de vie 💸** : Évaluez les conditions.")
+    st.write("- **Transports 🚌** : Comparez les infrastructures de transport.")
     st.markdown("---")
-    st.write("""Crédits:
-    \nAya El-Yaouti, Mariam N'Diaye, Lorynda Loufoua.
-    \nIUT Paris Rives de Seine""")
+
+    st.markdown("""
+**Crédits**:
+
+- <a href="https://www.linkedin.com/in/aya-el-yaouti" target="_blank">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg" alt="LinkedIn" width="22" style="vertical-align: middle;">
+    Aya El-Yaouti
+  </a>
+  |
+  <a href="https://github.com/AyaElyaouti" target="_blank">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub" width="22" style="vertical-align: middle;">
+    GitHub
+  </a>
+
+- <a href="https://www.linkedin.com/in/mariam-n-diaye-601409255" target="_blank">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg" alt="LinkedIn" width="22" style="vertical-align: middle;">
+    Mariam N'Diaye
+  </a>
+  |
+  <a href="https://github.com/nsmariam" target="_blank">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub" width="22" style="vertical-align: middle;">
+    GitHub
+  </a>
+
+- <a href="https://www.linkedin.com/in/lorynda-loufoua" target="_blank">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/linkedin/linkedin-original.svg" alt="LinkedIn" width="22" style="vertical-align: middle;">
+    Lorynda Loufoua
+  </a>
+  |
+  <a href="https://github.com/LoryndaL" target="_blank">
+    <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/github/github-original.svg" alt="GitHub" width="22" style="vertical-align: middle;">
+    GitHub
+  </a>
+
+*IUT Paris Rives de Seine*
+""", unsafe_allow_html=True)
 
 elif st.session_state.page == "Démographie":
-    st.header("Démographie")
+    st.header("🗺️Démographie")
     # Barres : Population, Naissances, Décès
     demo_df = pd.DataFrame({
         "Ville": [ville1, ville2],
@@ -205,7 +228,7 @@ elif st.session_state.page == "Démographie":
         ville1
         st.metric(label=f"#### Population 👥 ", value=df_ville1["P21_POP"])
         st.metric(label=f"#### Superficie (km²) 📐 ", value=float(df_ville1["SUPERF"]))
-        st.metric(label=f"#### Densité 🚶‍♂️)", value=round(densite1, 1))
+        st.metric(label=f"#### Densité 🚶‍♂️", value=round(densite1, 1))
     with col2:
         ville2
         st.metric(label=f"#### Population 👥 ", value=df_ville2["P21_POP"])
@@ -218,14 +241,22 @@ elif st.session_state.page == "Démographie":
     st.plotly_chart(fig_pop, use_container_width=True)
 
     # Naissances et décès
-    fig_naiss_deces = px.bar(demo_df, x="Ville",
-        y=["Naissances 2015-2020", "Décès 2015-2020", "Naissances 2023", "Décès 2023"],
-        barmode="group", title="Naissances et décès", color_discrete_sequence=palette)
-    st.plotly_chart(fig_naiss_deces, use_container_width=True)
+    fig_naiss_deces_2015_2020 = px.bar(demo_df, x="Ville",
+        y=["Naissances 2015-2020", "Décès 2015-2020"],
+        barmode="group",
+        title="Naissances et décès 2015-2020",
+        color_discrete_sequence=palette[0:2])
+    st.plotly_chart(fig_naiss_deces_2015_2020, use_container_width=True)
 
+    fig_naiss_deces_2023 = px.bar(demo_df, x="Ville",
+        y=["Naissances 2023", "Décès 2023"],
+        barmode="group",
+        title="Naissances et décès 2023",
+        color_discrete_sequence=palette[2:4])
+    st.plotly_chart(fig_naiss_deces_2023, use_container_width=True)
 
 elif st.session_state.page == "Emploi":
-    st.header("Emploi")
+    st.header("Emploi 💼")
     # 1. Comparaison du nombre d’emplois
     emploi_df = pd.DataFrame({
         "Ville": [ville1, ville2],
@@ -251,7 +282,6 @@ elif st.session_state.page == "Emploi":
                  value_vars=["Emplois salariés et non-salariés", "Emplois salariés"]),
                  x="variable", y="value", color="Ville", barmode="group",
                  title="Comparaison des emplois (2021)", color_discrete_sequence=palette)
-
 
     # Pie chart : Répartition Actifs/Chômeurs pour chaque ville
     col1, col2 = st.columns(2)
@@ -289,11 +319,11 @@ elif st.session_state.page == "Emploi":
     ).update_layout(plotly_theme["layout"])
     st.plotly_chart(fig3, use_container_width=True)
 
-    # Barres : Répartition des établissements par secteur
+    # Barres empilées : Répartition des établissements par secteur
     fig4 = px.bar(emploi_df.melt(id_vars="Ville", value_vars=["Agriculture", "Industrie", "Construction", "Commerce/Services", "Commerce auto", "Admin/Santé/Éducation"]),
-                      x="variable", y="value", color="Ville", barmode="group",
-                      labels={"variable": "Secteur", "value": "Nombre d'établissements"},
-                      title="Établissements actifs par secteur (2022)").update_layout(plotly_theme["layout"])
+                  x="Ville", y="value", color="variable", barmode="stack",
+                  labels={"variable": "Secteur", "value": "Nombre d'établissements"},
+                  title="Établissements actifs par secteur (2022)").update_layout(plotly_theme["layout"])
     st.plotly_chart(fig4, use_container_width=True)
 
     # Barres : Taille des établissements
@@ -304,7 +334,7 @@ elif st.session_state.page == "Emploi":
     st.plotly_chart(fig5, use_container_width=True)
 
 elif st.session_state.page == "Logement":
-    st.header("Logement")
+    st.header("Logement 🏠")
 
     logement_df = pd.DataFrame({
         "Ville": [ville1, ville2],
@@ -338,8 +368,8 @@ elif st.session_state.page == "Logement":
         ).update_layout(plotly_theme["layout"])
         st.plotly_chart(pie2, use_container_width=True)
 
-elif st.session_state.page == "Climat":
-    st.header("Climat")
+elif st.session_state.page == "Météo":
+    st.header("Météo ☀️")
     API_KEY = "9e86cfd9a711bbbc18064c42b7948771"
 
     col1, col2 = st.columns(2)
@@ -422,25 +452,79 @@ elif st.session_state.page == "Climat":
             )
 
 elif st.session_state.page == "Niveau de vie":
-    st.header("Niveau de vie")
-    # 1. Comparaison du niveau de vie
-    niveau_df = pd.DataFrame({
-        "Ville": [ville1, ville2],
-        "Médiane du niveau de vie (€)": [df_ville2["MED21"],df_ville2["MED21"]],
-        "Taux de pauvreté (%)": [df_ville1["TP6021"], df_ville2["TP6021"]],
-         "Ménages fiscaux 2021": [df_ville1["NBMENFISC21"], df_ville2["NBMENFISC21"]],
-        "Part ménages imposés (%)": [df_ville1["PIMP21"], df_ville2["PIMP21"]],
+    st.header("Niveau de vie 💸")
 
-    })
+    # Conversion des valeurs uniques (Series) en float
+    tp1 = float(str(df_ville1["TP6021"]).replace(",", ".").replace(" ", ""))
+    tp2 = float(str(df_ville2["TP6021"]).replace(",", ".").replace(" ", ""))
+    med1 = float(str(df_ville1["MED21"]).replace(",", ".").replace(" ", ""))
+    med2 = float(str(df_ville2["MED21"]).replace(",", ".").replace(" ", ""))
 
-    # Diagramme à barres groupées
-    fig1 = px.bar(niveau_df.melt(id_vars="Ville"), x="variable", y="value", color="Ville", barmode="group",
-                     labels={"variable": "Indicateur", "value": "Valeur"},
-                     title="Comparaison du niveau de vie des villes").update_layout(plotly_theme["layout"])
-    st.plotly_chart(fig1, use_container_width=True)
+    # Calculs pour la référence nationale
+    df_villes["MED21"] = pd.to_numeric(df_villes["MED21"].astype(str).str.replace(",", ".").str.replace(" ", ""), errors="coerce")
+    med_median = df_villes["MED21"].median()
+    med_min = df_villes["MED21"].min()
+    med_max = df_villes["MED21"].max()
 
-# Affiche source INSEE sauf dans l'onglet Climat
-if st.session_state.page != "Climat":
+    # Affichage des indicateurs
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric(f"Taux de pauvreté {ville1}", f"{tp1:.1f}%", delta=f"{tp1 - tp2:.1f}% vs {ville2}")
+    with col2:
+        st.metric(f"Médiane du niveau de vie {ville1}", f"{med1:.0f}€", delta=f"{med1 - med2:.0f}€ vs {ville2}")
+
+    # Graphique base 100 pour la médiane du niveau de vie
+    villes_graph = [ville1, ville2, "Médiane FR", "Min FR", "Max FR"]
+    valeurs_graph = [
+        100 * (med1 / med_median),
+        100 * (med2 / med_median),
+        100,
+        100 * (med_min / med_median),
+        100 * (med_max / med_median)
+    ]
+    fig = px.bar(
+        x=villes_graph,
+        y=valeurs_graph,
+        labels={'x': 'Ville', 'y': 'Niveau de vie (base 100 = médiane nationale)'},
+        color=villes_graph,
+        color_discrete_map={
+            ville1: "#636EFA",
+            ville2: "#EF553B",
+            "Médiane FR": "#00CC96",
+            "Min FR": "#AB63FA",
+            "Max FR": "#FFA15A"
+        },
+        title="Comparaison relative du niveau de vie (base 100 = médiane nationale)"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+elif st.session_state.page == "Carte":
+    st.header("🏙️ Localisation des Villes")
+    
+    # Récupération des coordonnées
+    lat1, lon1 = get_commune_coords(df_ville1["CODGEO"])
+    lat2, lon2 = get_commune_coords(df_ville2["CODGEO"])
+    
+    # Cartes côte à côte
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader(ville1)
+        m1 = folium.Map(location=[lat1, lon1], zoom_start=12)
+        folium.Marker([lat1, lon1], popup=ville1).add_to(m1)
+        folium.Circle([lat1, lon1], radius=5000, color='blue', fill=True).add_to(m1)
+        st_folium(m1, width=400, height=400)
+        
+    
+    with col2:
+        st.subheader(ville2)
+        m2 = folium.Map(location=[lat2, lon2], zoom_start=12)
+        folium.Marker([lat2, lon2], popup=ville2).add_to(m2)
+        folium.Circle([lat2, lon2], radius=5000, color='red', fill=True).add_to(m2)
+        st_folium(m2, width=400, height=400)
+
+# Affichage source INSEE sauf dans les onglets spécifiés
+if st.session_state.page not in ["Météo", "Accueil", "Carte"]:
     st.markdown(
         "<div style='color: gray; font-size: 11px; margin-top: -10px;'>"
         "Source : <a href='https://www.insee.fr/fr/statistiques/2521169#consulter' style='color: gray;' target='_blank'>INSEE</a>"
